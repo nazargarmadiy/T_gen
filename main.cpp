@@ -27,16 +27,16 @@ int main(){
 
     Msg_item_pkd pkd = Msg_item::Serialize(item);
 
-    Msg_item *unpacked = Msg_item::Deserialize(&pkd);
-    Msg_item_data data = unpacked->Get_data();
+    Msg_item unpacked = Msg_item::Deserialize(&pkd);
+    Msg_item_data data = unpacked.Get_data_cpy();
     printf("Id %i, seq_id %u, dst: %s, src: %s, name: %s, data type: %s, data %s\n",
-     unpacked->Get_id(), unpacked->Get_seq_id(), unpacked->Get_dst().c_str(),
-     unpacked->Get_src().c_str(), unpacked->Get_name().c_str(),
-     data.type.c_str(), (char*)data.data);
-     data.Free();
+           unpacked.Get_id(), unpacked.Get_seq_id(), unpacked.Get_dst().c_str(),
+           unpacked.Get_src().c_str(), unpacked.Get_name().c_str(),
+           data.type.c_str(), (char*)data.data);
+           data.Free();
     getchar();
     pkd.Free();
-    delete(unpacked);
+    Msg_item unpacked_1 = unpacked;
     printf("\n Exiting...\n");
     return 0;
 }

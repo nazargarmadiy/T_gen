@@ -29,7 +29,6 @@ class Msg_item
     std::string source;
     std::string name;
     struct Msg_item_data data;
-
   public:
     Msg_item();
     Msg_item(int msg_id,
@@ -39,12 +38,13 @@ class Msg_item
              const std::string &msg_src,
              const std::string &msg_name,
              const struct Msg_item_data &msg_data);
-    /*TODO: add copy constructor*/
+    Msg_item(const Msg_item &item);
+    Msg_item & operator = (const Msg_item &item);
     virtual ~Msg_item();
     void Set_id(int msg_id);
     const int Get_id();
     void Set_data(const struct Msg_item_data *msg_data);
-    struct Msg_item_data Get_data();
+    struct Msg_item_data Get_data_cpy();
     void Set_seq(bool msg_seq);
     const bool Get_seq();
     void Set_seq_id(int msg_seq_id);
@@ -56,5 +56,5 @@ class Msg_item
     void Set_name(const std::string &msg_name);
     const std::string Get_name();
     static struct Msg_item_pkd Serialize(Msg_item &item);
-    static Msg_item *Deserialize(struct Msg_item_pkd *item);
+    static Msg_item Deserialize(struct Msg_item_pkd *item);
 };

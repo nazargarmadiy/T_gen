@@ -78,6 +78,38 @@ Msg_item::Msg_item(int msg_id,
     memcpy(data.data, msg_data.data, data.size);
 };
 
+Msg_item::Msg_item(const Msg_item &item){
+	id = item.id;
+	sequense = item.sequense;
+	sequense_id = item.sequense_id;
+	destination = item.destination;
+	source = item.source;
+	name = item.name;
+	data.size = item.data.size;
+	data.type = item.data.type;
+	data.data = nullptr;
+	data.Alloc();
+	memcpy(data.data, item.data.data, data.size);
+};
+
+Msg_item& Msg_item::operator = (const Msg_item &item){
+	if(this != &item){
+		id = item.id;
+		sequense = item.sequense;
+		sequense_id = item.sequense_id;
+		destination = item.destination;
+		source = item.source;
+		name = item.name;
+		data.Free();
+		data.size = item.data.size;
+		data.type = item.data.type;
+		data.data = nullptr;
+		data.Alloc();
+		memcpy(data.data, item.data.data, data.size);
+	}
+	return *this;
+}
+
 Msg_item::~Msg_item()
 {
     data.Free();
@@ -120,7 +152,7 @@ void Msg_item::Set_data(const struct Msg_item_data *msg_data)
     }
 };
 
-struct Msg_item_data Msg_item::Get_data()
+struct Msg_item_data Msg_item::Get_data_cpy()
 {
     Msg_item_data item_data = data;
     item_data.data = nullptr;
@@ -200,7 +232,7 @@ const std::string Msg_item::Get_name()
 
 struct Msg_item_pkd Msg_item::Serialize(Msg_item &item)
 {
-    Msg_item_data  item_data = item.Get_data();
+    Msg_item_data  item_data = item.Get_data_cpy();
     unsigned int   total_size;
     unsigned int   src_len = item.Get_src().length() + 1;
     unsigned int   dst_len = item.Get_dst().length() + 1;
@@ -241,7 +273,7 @@ struct Msg_item_pkd Msg_item::Serialize(Msg_item &item)
     memcpy(ptr, &seq_id, sizeof(seq_id));
     ptr += sizeof(seq_id);
 
-    /* append dst, src, name, and lenght for each field */
+    /* append dst, src, name, and length for each field */
     mempcpy(ptr, &dst_len, sizeof(dst_len));
     ptr += sizeof(dst_len);
     memcpy(ptr, dst_str, dst_len);
@@ -257,7 +289,7 @@ struct Msg_item_pkd Msg_item::Serialize(Msg_item &item)
     memcpy(ptr, name_str, name_len);
     ptr += name_len;
 
-    /* append data - size, type, data, and lenght for type */
+    /* append data - size, type, data, and length for type */
     memcpy(ptr, &(item_data.size), sizeof(item_data.size));
     ptr += sizeof(item_data.size);
 
@@ -272,10 +304,9 @@ struct Msg_item_pkd Msg_item::Serialize(Msg_item &item)
     return item_pkd;
 };
 
-Msg_item *Msg_item::Deserialize(struct Msg_item_pkd *item)
+Msg_item Msg_item::Deserialize(struct Msg_item_pkd *item)
 {
     Msg_item_data  item_data;
-    unsigned int   total_size;
     unsigned int   src_len = 0;
     unsigned int   dst_len = 0;
     unsigned int   name_len = 0;
@@ -354,8 +385,7 @@ Msg_item *Msg_item::Deserialize(struct Msg_item_pkd *item)
     item_data.Alloc();
     memcpy(item_data.data, ptr, item_data.size);
 
-    Msg_item *ret_item = new Msg_item(id, seq, seq_id, dst_str, src_str, name_str, item_data);
-
+    Msg_item ret_item(id, seq, seq_id, dst_str, src_str, name_str, item_data);
     item_data.Free();
     free(dst_str);
     free(src_str);
