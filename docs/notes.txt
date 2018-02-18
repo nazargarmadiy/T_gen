@@ -1,0 +1,236 @@
+﻿Traffic generator
+
+Створення пакетів за допомогою сирих сокетів. Для Лінукс систем.
+Функціонал:
+створення довільних пакетів tcp, udp;
+створення одного або кількох пакетів, інкрементація пакетів;
+обрахування та перевірка чексум; валідація пакетів;
+відправка пакетів (аналіз отриманих пакетів?);
+серіалізація пакетів (у бінарники);
+візуалізація пакетів у форматі json;
+підтримка ipv4, ipv6;
+Робота з кількома сокетами одночасно (багатопоточність?);
+
+
+Для аплікухи використовуємо паттерн MVC. 
+Модель: створює пакети, діапазони пакетів. Класи: базовий для пакетів, який реалізує інтерфейс, класси – нащадки. Абстрактна фабрика для пакетів. Клас для серіалазації та десеріалізації (бінарник і джейсон). Структура з параметрами пакету.
+Вюшка: клас який реалізує або СЛІ, або ГУІ. Відображає меню, прогрес, рейти, пакети. Для меню реалізувати клас меню, субменю і меню ітем. Клас меню буде містити список субменю, а субменю буде містити меню ітем. Реалізувати клас команди, для взаємодії з контролером.
+Контроллер: клас який містить основну логіку, обмінюється коммандами з вюшкою, і з моделлю. Вміє читати та зберігати налаштування аплікухи. (+ взаємодія з вайршарком?)
+
+Корисні посилання:
+простий сніффер;
+RAW сокети;
+TCP/IP;
+UDP wiki;
+ARP wiki;
+IPv4
+TCP wiki;
+сніффер_1
+сніффер cpp
+net_device_ioctl
+IPC
+http://www.4stud.info/rtos/lecture4.html
+sockets rsdn
+ipc: https://users.cs.cf.ac.uk/Dave.Marshall/C/node28.html http://www.it.uom.gr/teaching/distrubutedSite/dsIdaLiu/labs/lab2_1/sockets.html
+
+Need to implement module wich will be analyze traffic in promiscuous mode. This module should communicate with controller class and use relevant class for packet.
+
+MULTITHREADING
+Main function runs controller process and controller process run other relevant processes – View and Model.
+Threads and responsibility:
+Main: run all other threads, allocates all main resources, restart process (if needed), handle signals;
+Logger: logs runtime info from all other processes;
+View: user interface (display info, receive commands);
+Controller: processing user commands, model driving, main logic;
+Model: creating traffic items, sending, receiving;
+Each thread able to create own sub process if needed;
+IPC:
+Using sockets for sending query and response (queue or pipe as variant);
+Items for communications: query. Should have fields ID, size, name, destination (for which module), sequence flag (for “fragmented” queries), sequence ID, query data (size and type);
+each thread should have own work  queue, which contain incoming and outgoing queue; 
+Perhaps you can allocate some pool of memory as buffer for read and write to socket.
+Thread management:
+Different priority for threads;
+Restart thread after crash;
+Checking if thread was finished without errors (use shared memory?);
+
+MAIN FUNCTION
+Allocate main resources;
+Run other threads (Model, View, Controller, Logger);
+Handle signals;
+Read configuration;
+
+CLASSES FOR COMMUNICATION
+
+Query_item:
+For communication between Model, View, Controller, Logger;
+Contain: ID, full_size, type (get, run, info, answer), sender, destination, sequence flag (for “fragmented” queries), sequence ID, query data (size, command_name, type, command_data);
+
+Query_serializer:
+Serialize and deserialize query from/to binary type;
+
+In_queue:
+Receive and deserialize queries;
+Call relevant handler for query;
+Contain map query to handler map (should be registered from outside);
+Check is receiver correct;
+
+Out_queue:
+Serialize and send queries;
+Map query destination to relevant receiver;
+Contain destination address to receiver map;
+Check is the sender correct;
+
+Queue notes:
+Each process (Logger, Model, Controller, View) should contain set of sockets for receiving messages and set of socket for sending messages to relevant client. Implement Base class for In_queue and Out_queue.
+
+Class ipc_stream (it is abstraction layer for entity, which provide ipc communication):
+Connect();
+Send(uint size, void *buff);
+Receive(uint size, voud *buff);
+Disconnect();
+Get_state() (Connected, Disconnected, Error…);
+
+In each case ways of initialization might be different (depending from implementation), but in any case main usage should be same;
+
+Class communication_point
+name (string) – name of destination;
+internal_stream (instanse of ipc_stream) for comunication with queue ((see FIFO);
+external_stream (instance of ipc_stream) for sending outside (see socket implementaions);
+callback_map (map<name, callback>);
+state;
+
+Class Sock_info:
+sock_addr (sockaddr_un) – address for socket;
+sock_family (AF_UNIX);
+sock_type (SOCK_SEQPACKET);
+sock_id (result of socket() function);
+functions for bind, open...
+
+In_queue:
+Run() - begin receive messages (from in_socket) to internal queue and sending to relevant receivers. Starts new thread.
+Stop() - stop receive messages;
+Process_msg() - function, which will get message and send them further through FIFO (to other communication points);
+Instance_name – name of instance (e. g. Logger, View);
+Msg_loop() function which should be start by Run() in new thread. This function call recv() func and relevant callback for message. Start new thread: pthread_create(), pthread_join() or std::threat t_1(function, param) and t_1.join(). On GCC, compile with -std=c++0x -pthread;
+set of communication_points for each source /destination internal communication(see FIFO) with threads Msg_loop();
+queue_state (Run, Stop, Error…);
+
+Out_queue:
+Run() - begin sent messages (get message from internal stream, and sent to relevant communication point);
+Stop() - stops sent messages;
+Process_msg();
+Instance_name;
+Msg_loop();
+set of communication_points;
+queue_state;
+
+
+Work_queue:
+contain In_queue and Out_queue;
+queue_state;
+instance_name;
+Run();
+Stop();
+Process_msg();
+
+Flows:
+
+Sending message: 1. work_queue get message (passed to Process_msg()); 2. sent message to Out_queue (passed to Process_msg()); 3. Out_queue chose relevant communication_point (see field “Destination” in msg) and pass message to selected comunication point; 4. Communication point through instance of ipc_stream send message to other communication point;
+
+Receiving message: 1. communication point receive message (get from instance of ipc_stream); 2. Deserilize message and call relevant callback (starts new thread?);
+
+Init In_queue: Run() - for each communication point run Msg_loop() this will open connection (Connect() int ipc_stream instance);
+
+LOGGER CLASSES 
+Logger
+log levels: DEBUG, INFO, NOTICE, WARNING, ERROR, CRITICAL. Default is INFO;
+options to choose maximum size of file, count of files;
+compressing files;
+rotations files (substituting oldest file);
+automatically append date and time;
+adjust date and time format;
+for logging can accept exception, or string;
+option to disable logging;
+logging step by step into file or using internal buffer to temporary storing data and flushing into the file (reducing HDD usage);
+Logger_server
+creates and configures logger instance;
+receives items for logging and pass them to logger;
+
+CONTROLLER CLASSES
+ControllerCore
+Loading and saving configurations (using class ConfManager);
+Loading and sawing user defined packets and sequences (TemplateManager)
+Communicates between View and Model (receives and sends querier);
+Creating statistics;
+Main logic (creating, analyzing packets, etc); 
+
+InterfaceDriver
+Get all available network interface and relevant parameters;
+Set interface to promiscuous mode, and back, to standart mode;
+Configuring network interface (HW addr, IP addr, speed, other parameters);
+Creating and deleting interfaces;
+
+VIEW CLASSES
+View:
+Draws user interface;
+Communicate with user (input and output) and controller (send command, get info for display);
+Create requests for different info from Controller;
+Create request for sending traffic;
+Configuring, e.t.c.
+
+UserCommand:
+Exec handler;
+Parameters array;
+Command name;
+Help info;
+Autocompleteion handler;
+
+Menu:
+Contains menu items;
+Menu_Item:
+Contains command or list of Menu items;
+CLI options:
+Auto completion (use commands tree and binary search for commands and autocompleting handles for different parameters;
+Progress bar;
+Different colors;
+
+MODEL CLASSES
+
+PacketHeader: (headers can be different)
+Contains binary representation of packet header;
+Can represent TCP and UDP headers;
+Representation of each field separately;
+
+Packet:
+Header (tcp or udp, ip) instance of PacketHeader class;
+Data segment;
+Checksum;
+Serialization and deserialization (binary representation);
+
+TrafficFactory:
+Creates instance of packet from input parameters;
+
+Socket:
+Creating, managing and deleting sockets;
+Sending single or multiple packets through socket;
+Reading data from socket;
+
+
+ 
+Enums for diferent network protocols – arp, icmp, igmp, ospf…
+
+Flows:
+
+Loading:
+
+Initializing Controller. Controller initialize Model, then controller Initialize View.
+View during initialization provide registering callbacks for commands, each successful registered command can be displayed and executed.
+
+Executing command:
+View send command to Controller. Controller call relevant handlers, and sends to View response. View print output using response info. 
+
+
+Need to add: graft of classes and scheme of classes and base flows 
+
+Need to add comparator for packets
