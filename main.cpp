@@ -2,6 +2,8 @@
 #include <string.h>
 #include "common_src/msg_item.h"
 
+#include "common_src/cmnct_point.h"
+
 int main(){
     printf("test message\n");
 
@@ -37,6 +39,10 @@ int main(){
     getchar();
     pkd.Free();
     Msg_item unpacked_1 = unpacked;
+
+    Cmnct_point pnt;
+    printf("pnt state: %u", pnt.Get_state());
+
     printf("\n Exiting...\n");
     return 0;
 }
